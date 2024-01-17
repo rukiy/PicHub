@@ -8,4 +8,16 @@
 4. 增加了是否压缩开关
 5. 增加了是否重命名开关
 
+
+## 部署
+
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/rukiy/PicHub&project-name=pichub&repository-name=PicHub)
+
+## 调试
+
+1. pnpm dev
+
+## 打包
+
+2. pnpm build
+
