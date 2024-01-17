@@ -1,0 +1,74 @@
+import * as utils from '../util/util'
+
+class ImageFile {
+  name: string
+  folder: string
+  size: number
+  ext: string
+  base64: string
+
+  copy(imageFile: ImageFile){
+    this.name = imageFile.name
+    this.folder= imageFile.folder
+    this.size = imageFile.size 
+    this.ext = imageFile.ext 
+    this.base64 = imageFile.base64 
+  }
+
+  getBase64data():string {
+    return this.base64.replace(/^data:image\/\w+;base64,/,'')
+  }
+}
+
+class UploadImageFile extends ImageFile{
+
+  copyGithubFile(githubFile: any){
+    this.url = githubFile.url
+    this.download_url = githubFile.download_url
+    this.git_url = githubFile.git_url
+    this.sha = githubFile.sha
+    this.html_url = githubFile.html_url
+    this.folder = utils.GetFileFolderPath(githubFile.path)
+    this.name = utils.GetFileName(githubFile.name)
+    this.ext = utils.GetFileExt(githubFile.name)
+    this.size = githubFile.size
+  }
+
+  getCDN(){
+    return utils.GetCDNUrl(`${this.folder}/${this.name}${this.ext}`)
+  }
+
+  download_url: string
+  git_url: string
+  html_url: string
+  sha: string
+  url: string
+}
+
+enum UploadStatus {
+  ready,
+  uploading,
+  success,
+  fail
+}
+
+class UploadTask {
+
+  orginal: ImageFile
+  compress: ImageFile
+  upload: UploadImageFile
+  status: UploadStatus
+  newName: string
+  isCompress: boolean
+  isReName: boolean
+  
+}
+
+
+export {
+  ImageFile,
+  UploadImageFile,
+  UploadTask,
+  UploadStatus
+}
+
