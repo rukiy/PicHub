@@ -26,7 +26,7 @@ class ImageFile {
 
 class UploadImageFile extends ImageFile {
 
-  copyGithubFile(githubFile: GithubResponceFile) {
+  copyGithubFile(githubFile: GithubFile) {
     this.url = githubFile.url
     this.download_url = githubFile.download_url
     this.git_url = githubFile.git_url
