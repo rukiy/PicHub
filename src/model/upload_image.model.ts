@@ -6,23 +6,27 @@ class ImageFile {
   size: number
   ext: string
   base64: string
+  width: number
+  height: number
 
-  copy(imageFile: ImageFile){
+  copy(imageFile: ImageFile) {
     this.name = imageFile.name
-    this.folder= imageFile.folder
-    this.size = imageFile.size 
-    this.ext = imageFile.ext 
-    this.base64 = imageFile.base64 
+    this.folder = imageFile.folder
+    this.size = imageFile.size
+    this.ext = imageFile.ext
+    this.base64 = imageFile.base64
+    this.width = imageFile.width
+    this.height = imageFile.height
   }
 
-  getBase64data():string {
-    return this.base64.replace(/^data:image\/\w+;base64,/,'')
+  getBase64data(): string {
+    return this.base64.replace(/^data:image\/\w+;base64,/, '')
   }
 }
 
-class UploadImageFile extends ImageFile{
+class UploadImageFile extends ImageFile {
 
-  copyGithubFile(githubFile: any){
+  copyGithubFile(githubFile: GithubResponceFile) {
     this.url = githubFile.url
     this.download_url = githubFile.download_url
     this.git_url = githubFile.git_url
@@ -34,7 +38,7 @@ class UploadImageFile extends ImageFile{
     this.size = githubFile.size
   }
 
-  getCDN(){
+  getCDN() {
     return utils.GetCDNUrl(`${this.folder}/${this.name}${this.ext}`)
   }
 
@@ -61,11 +65,25 @@ class UploadTask {
   newName: string
   isCompress: boolean
   isReName: boolean
-  
+
+}
+
+
+interface GithubFile {
+  download_url: string
+  git_url: string
+  html_url: string
+  name: string
+  path: string
+  sha: string
+  size: number
+  type: string
+  url: string
 }
 
 
 export {
+  GithubFile,
   ImageFile,
   UploadImageFile,
   UploadTask,

@@ -17,6 +17,9 @@ dependencies:
   clipboard:
     specifier: 2.0.4
     version: 2.0.4
+  js-base64:
+    specifier: ^3.7.6
+    version: 3.7.6
   moment:
     specifier: ^2.29.1
     version: 2.30.1
@@ -1826,6 +1829,10 @@ packages:
   /isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
     dev: true
+
+  /js-base64@3.7.6:
+    resolution: {integrity: sha512-NPrWuHFxFUknr1KqJRDgUQPexQF0uIJWjeT+2KjEePhitQxQEx5EJBG1lVn5/hc8aLycTpXrDOgPQ6Zq+EDiTA==}
+    dev: false
 
   /js-stringify@1.0.2:
     resolution: {integrity: sha512-rtS5ATOo2Q5k1G+DADISilDA6lv79zIiwFd6CcjuIxGKLFm5C+RLImRscVap9k55i+MOZwgliw+NejvkLuGD5g==}

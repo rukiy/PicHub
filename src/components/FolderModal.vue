@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Alert } from '../util/alert'
-import * as Config  from '../util/config'
+import * as Config from '../util/config'
 import axios from '../axios/http'
 import { ref } from 'vue'
 import { LewButton, LewInput, LewFormItem } from '../components/base'
@@ -29,12 +29,14 @@ const AddForder = () => {
     return
   }
   loading.value = true
-  axios
-    .put({
-      url: `/repos/${github_config.owner}/${github_config.repoName}/contents/${forderName.value}/init
-`,
+  axios.put({
+      url: `https://api.github.com/repos/${github_config.owner}/${github_config.repoName}/contents/${forderName.value}/init`,
+      headers:{
+        Authorization: `token ${Config.githubConfig().token}`,
+      },
       data: {
         message: 'add a forder',
+        // 此文件用于创建文件夹
         content: '5q2k5paH5Lu255So5LqO5Yib5bu65paH5Lu25aS5',
       },
     })
@@ -83,6 +85,7 @@ const AddForder = () => {
   border-top: var(--border-width) var(--border-color) solid;
   transition: all 0.25s;
 }
+
 .isOpen {
   bottom: 200px;
   opacity: 1;
@@ -91,13 +94,15 @@ const AddForder = () => {
 .form-item {
   margin-bottom: 6px;
 }
+
 .form-item:first-child {
   margin-top: 10px;
 }
+
 .btn-box {
   display: flex;
+
   .button:first-child {
     margin-right: 6px;
   }
-}
-</style>
+}</style>

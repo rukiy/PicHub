@@ -10,6 +10,8 @@ import {
 } from '../components/base'
 import { GithubConfig } from '../model/github_config.model'
 import { SettingConfig } from '../model/setting_config.model'
+import { GiteeConfig } from '../api/GiteeAPI'
+
 import axios from '../axios/http'
 import { onMounted, reactive, ref } from 'vue'
 
@@ -17,14 +19,13 @@ const defaultCdnRule = 'https://jsd.cdn.zzko.cn/gh/{owner}/{repo}@{branch}/{path
 const repos = ref([] as any)
 const branchs = ref([] as any)
 let githubConfig: any = ref({} as GithubConfig)
+let giteeConfig: any = ref({} as GiteeConfig)
 let settingConfig: any = ref({} as SettingConfig)
 
 let loading_1 = ref(false)
 let loading_2 = ref(false)
 let loading_3 = ref(false)
 let loading_4 = ref(false)
-
-
 
 onMounted(() => {
   githubConfig.value = Config.githubConfig()
@@ -35,9 +36,8 @@ onMounted(() => {
 })
 
 const GetUser = () => {
-  axios
-    .get({
-      url: `/user`,
+  axios.get({
+      url: `https://api.github.com/user`,
       headers:{
         Authorization: `token ${githubConfig.value.token}`,
       }
@@ -58,9 +58,8 @@ const GetUser = () => {
 }
 
 const GetRepos = () => {
-  axios
-    .get({
-      url: `/users/${githubConfig.value.owner}/repos?type=public&sort=created&per_page=100`,
+  axios.get({
+      url: `https://api.github.com/users/${githubConfig.value.owner}/repos?type=public&sort=created&per_page=100`,
       headers:{
         Authorization: `token ${githubConfig.value.token}`,
       }
@@ -72,9 +71,8 @@ const GetRepos = () => {
 }
 
 const GetbBranch = (label,value) => {
-  axios
-    .get({
-      url: `/repos/${githubConfig.value.owner}/${label}/branches`,
+  axios.get({
+      url: `https://api.github.com/repos/${githubConfig.value.owner}/${label}/branches`,
       headers:{
         Authorization: `token ${githubConfig.value.token}`,
       }
@@ -103,6 +101,7 @@ const Save = () => {
   }
 
   Config.saveGithubConfig(githubConfig.value)
+  Config.saveGithubConfig(giteeConfig.value)
   Config.saveSettingConfig(settingConfig.value)
 
   setTimeout(() => {
@@ -186,7 +185,15 @@ const changeDarkModel = (e) => {
       <lew-form-item v-show="repos.length > 0" title="设置cdn模板">
         <lew-input v-model="githubConfig.cdnRule" placeholder="https://jsd.cdn.zzko.cn/gh/{owner}/{repo}@{branch}/{path}"></lew-input>
       </lew-form-item>
+      <hr />
+      <lew-form-item title="Gitee access token" >
+        <lew-input
+          v-model="githubConfig.access_token"
+          placeholder="请输入Gitee access_token"
+        ></lew-input>
+      </lew-form-item>
     </div>
+    
 
     <lew-form-item direction="row" v-show="repos.length > 0" title="暗黑模式">
       <lew-switch v-model="settingConfig.isDark" @change="changeDarkModel"></lew-switch>

@@ -10,7 +10,8 @@ import { LewFormItem, LewButton, LewSelect, LewSwitch } from '../components/base
 import { useRoute, useRouter } from 'vue-router'
 import { GithubConfig } from '../model/github_config.model'
 import { SettingConfig } from '../model/setting_config.model'
-import { ImageFile, UploadImageFile, UploadTask, UploadStatus } from '../model/upload_image.model'
+import { GithubFile, ImageFile, UploadImageFile, UploadTask, UploadStatus } from '../model/upload_image.model'
+
 import * as utils from '../util/util'
 
 const route = useRoute()
@@ -208,11 +209,12 @@ const Upload = async  () => {
 
       // 等待异步操作完成，返回执行结果
       return new Promise((resolve) => {
-
         setTimeout(() => {
-          axios
-            .put({
-              url: `/repos/${github_config.owner}/${github_config.repoName}/contents/${uploadImageFile.folder}/${uploadImageFile.name}${uploadImageFile.ext}`,
+          axios.put({
+              url: `https://api.github.com/repos/${github_config.owner}/${github_config.repoName}/contents/${uploadImageFile.folder}/${uploadImageFile.name}${uploadImageFile.ext}`,
+              headers:{
+                Authorization: `token ${Config.githubConfig().token}`,
+              },
               data: {
                 message: `upload a image(${uploadImageFile.folder}/${uploadImageFile.name}${uploadImageFile.ext})`,
                 content: uploadImageFile.getBase64data(),
@@ -220,7 +222,7 @@ const Upload = async  () => {
             })
             .then((res: any) => {
               uploadTask.status = UploadStatus.success
-              let file = res.data.content
+              let file = res.data.content as GithubFile
               uploadImageFile.copyGithubFile(file)
 
               // 删除不需要的base64数据
@@ -236,11 +238,11 @@ const Upload = async  () => {
               uploadTask.status = UploadStatus.fail
               resolve(400)
             })
-            uploadImageFile
         }, (timer += 1000))
       })
     })
   );
+
   Alert({
     type: 'success',
     text: '上传完成',
@@ -450,10 +452,15 @@ const newText = (uploadTask: UploadTask, isCompress: boolean,isReName: boolean)=
           </div>
           <div class="tag-box">
             <span class="tag folder">{{ uploadTask.orginal.folder }}</span>
-            <span class="tag orginal-size" :class="setting_Config.isCompress? ' orginal-size-decoration':'' ">{{ utils.GetFileSize(uploadTask.orginal.size)}}</span>
-            <span v-if="setting_Config.isCompress" class="tag compress-size">{{
-              utils.GetFileSize(uploadTask.compress.size)
-            }}</span>
+            <span class="tag orginal-size" :class="setting_Config.isCompress? ' orginal-size-decoration':'' ">
+              {{ utils.GetFileSize(uploadTask.orginal.size) }}
+            </span>
+            <span v-if="setting_Config.isCompress" class="tag compress-size">
+              {{ utils.GetFileSize(uploadTask.compress.size) }}
+            </span>
+            <span class="tag">
+              {{ uploadTask.orginal.width }} x {{ uploadTask.orginal.height }}
+            </span>
           </div>
         </div>
         <img :src="uploadTask.compress.base64" class="image" />
@@ -536,7 +543,9 @@ const newText = (uploadTask: UploadTask, isCompress: boolean,isReName: boolean)=
             <span v-if="uploadTask.isCompress" class="tag compress-size">{{
               utils.GetFileSize(uploadTask.compress.size)
             }}</span>
-
+            <span class="tag">
+              {{ uploadTask.orginal.width }} x {{ uploadTask.orginal.height }}
+            </span>
               <!-- v-bind:data-clipboard-text="GetMarkdownText(uploadTask)" -->
             <span
               @click="copyMarkdownText(uploadTask)"

@@ -3,11 +3,14 @@ import { Alert } from '../util/alert'
 import * as utils  from '../util/util'
 import * as Config  from '../util/config'
 import { GithubConfig } from '../model/github_config.model'
-import { ImageFile, UploadImageFile, UploadTask, UploadStatus } from '../model/upload_image.model'
+import { GithubFile, ImageFile, UploadImageFile, UploadTask, UploadStatus } from '../model/upload_image.model'
 import LewButton from '../components/base/LewButton.vue'
 import axios from '../axios/http'
 import { onMounted, watch, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { generateGallery } from '../util/generateData'
+
+
 
 const emit = defineEmits(['SetLoading', 'OpenUploadModel'])
 
@@ -24,7 +27,8 @@ watch(
 )
 
 let uploadImageFiles = ref([] as UploadImageFile[])
-let files = ref([] as any)
+let githubFiles = ref([] as GithubFile[])
+let folder_file = null as GithubFile
 
 onMounted(() => {
   if (github_config?.owner) {
@@ -40,19 +44,24 @@ let imageExts = ['.png','.jpg','.jpeg','.bmp','.gif','.webp','.psd','.svg','.tif
 
 const GetImages = (folderPath) => {
   emit('SetLoading', true)
-  axios
-    .get({
-      url: `/repositories/${github_config?.repoId}/contents/${ folderPath || ''}?t=${new Date().getTime()}`
+  folder_file = null
+  axios.get({
+      url: `https://api.github.com/repositories/${github_config?.repoId}/contents/${ folderPath || ''}?t=${new Date().getTime()}`,
+      headers:{
+        Authorization: `token ${Config.githubConfig().token}`,
+      }
     })
     .then((res: any) => {
-      files.value = res.data
+      githubFiles.value = res.data
       emit('SetLoading', false)
       uploadImageFiles.value = []
-      res.data.forEach((file) => {
-        let ext = utils.GetFileExt(file.name)
-        if (file.download_url && imageExts.includes(ext)) {
+      githubFiles.value.forEach((githubFile) => {
+        let ext = utils.GetFileExt(githubFile.name)
+        if(githubFile.name === `${folderPath}.json`){
+          folder_file = githubFile
+        } else if (githubFile.download_url && imageExts.includes(ext)) {
           let uploadImageFile = new UploadImageFile()
-          uploadImageFile.copyGithubFile(file)
+          uploadImageFile.copyGithubFile(githubFile)
           uploadImageFiles.value.unshift(uploadImageFile)
         }
       })
@@ -60,6 +69,13 @@ const GetImages = (folderPath) => {
     .catch(() => {
       emit('SetLoading', false)
     })
+}
+
+
+const generateGalleryData = async () => {
+  emit('SetLoading', true)
+  await generateGallery(route.query.folder,folder_file,uploadImageFiles.value)
+  emit('SetLoading', false)
 }
 
 // 设置复制markdown
@@ -76,14 +92,16 @@ const copyCDNText = (uploadImageFile: UploadImageFile) => {
 
 let loading = ref(false)
 const DeleteForder = () => {
-  if (files.value[0]?.name == 'init') {
+  if (githubFiles.value[0]?.name == 'init') {
     loading.value = true
-    axios
-      .delete({
-        url: `/repos/${github_config.owner}/${github_config.repoName}/contents/${route.query.folder}/init`,
+    axios.delete({
+        url: `https://api.github.com/repos/${github_config.owner}/${github_config.repoName}/contents/${route.query.folder}/init`,
+        headers:{
+          Authorization: `token ${Config.githubConfig().token}`,
+        },
         data: {
           message: 'delete init file',
-          sha: files.value[0]?.sha,
+          sha: githubFiles.value[0]?.sha,
         },
       })
       .then(() => {
@@ -104,9 +122,11 @@ const DeleteForder = () => {
 
 const DeleteImage = (uploadImageFile: UploadImageFile) => {
   emit('SetLoading', true)
-  axios
-    .delete({
-      url: `/repos/${github_config.owner}/${github_config.repoName}/contents/${route.query.folder}/${uploadImageFile.name}${uploadImageFile.ext}`,
+  axios.delete({
+      url: `https://api.github.com/repos/${github_config.owner}/${github_config.repoName}/contents/${route.query.folder}/${uploadImageFile.name}${uploadImageFile.ext}`,
+      headers:{
+        Authorization: `token ${Config.githubConfig().token}`,
+      },
       data: {
         message: 'delete a image',
         sha: uploadImageFile.sha,
@@ -135,6 +155,14 @@ const FormatWImageInfo = (uploadImageFile: UploadImageFile) => {
     <div class="item"><span>download_url</span><div>${uploadImageFile.download_url}</div> </div>
   `
 }
+const imgOnload = (e: any) => {
+  let uploadImageFile = uploadImageFiles.value.find((uploadImageFile) => {
+    return uploadImageFile.sha === e.target.id
+  })
+  uploadImageFile.width = e.target.width
+  uploadImageFile.height = e.target.height
+}
+
 
 defineExpose({
   GetImages,
@@ -173,11 +201,12 @@ defineExpose({
           :href="uploadImageFile.getCDN()"
           data-fancybox="gallery"
         >
-          <img :src="uploadImageFile.getCDN()" loading="lazy"
-        /></a>
+          <img :id="uploadImageFile.sha" :src="uploadImageFile.getCDN()" @load="imgOnload" loading="lazy" />
+        </a>
         <div class="info">
-          <div class="name">{{ `${uploadImageFile.name}${uploadImageFile.ext}` }}</div>
-
+          <div class="name">
+            {{ `${uploadImageFile.name}${uploadImageFile.ext}`  }}
+          </div>
           <div class="copy-box">
             <span
               class="copy-btn"
@@ -193,7 +222,7 @@ defineExpose({
       </div>
     </div>
     <div v-if="uploadImageFiles.length > 0" class="footer">
-      {{ uploadImageFiles.length }} images
+      <lew-button type="gray" @click="generateGalleryData" style="height: 100%; width: 120px;">{{ uploadImageFiles.length }} images</lew-button>
     </div>
   </div>
 </template>
@@ -352,6 +381,10 @@ defineExpose({
     }
   }
   .footer {
+    display: flex;
+    align-items: center;
+    align-content: center;
+    justify-content: center;
     position: sticky;
     bottom: 0px;
     right: 0px;
@@ -362,7 +395,8 @@ defineExpose({
     text-align: center;
     color: var(--text-color-2);
     border-top: var(--border-width) var(--border-color) solid;
-    background: var(--background);
+    // background: var(--background);
+    background: var(--background-2);
     opacity: 0.7;
   }
   .not-found {

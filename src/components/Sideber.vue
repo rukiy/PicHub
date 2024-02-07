@@ -56,11 +56,11 @@ watch(
 
 const GetFolders = () => {
   loading.value = true
-  axios
-    .get({
-      url: `/repositories/${
-        github_config.repoId
-      }/contents?t=${new Date().getTime()}`,
+  axios.get({
+      url: `https://api.github.com/repositories/${github_config.repoId}/contents?t=${new Date().getTime()}`,
+      headers:{
+        Authorization: `token ${Config.githubConfig().token}`,
+      }
     })
     .then((res: any) => {
       loading.value = false

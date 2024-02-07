@@ -13,19 +13,19 @@ class xwlRequest {
     this.instance = axios.create(config) //创建axios实例
     this.instance.interceptors.request.use(
       //实例中的请求拦截器
-      (config) => {
-        //请求成功的拦截
-        let token = Config.githubConfig().token
-        if (token) {
-          config.headers!.Authorization = `token ${token}`;
-        }
-        return config
-      },
-      (error) => {
-        console.log(error)
-        //请求失败的拦截
-        return Promise.reject(error)
-      }
+      // (config) => {
+      //   //请求成功的拦截
+      //   let token = Config.githubConfig().token
+      //   if (token) {
+      //     config.headers!.Authorization = `token ${token}`;
+      //   }
+      //   return config
+      // },
+      // (error) => {
+      //   console.log(error)
+      //   //请求失败的拦截
+      //   return Promise.reject(error)
+      // }
     )
     this.instance.interceptors.response.use(
       //实例中的响应拦截器
