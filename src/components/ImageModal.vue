@@ -8,7 +8,8 @@ import { onMounted, watch, ref, inject, computed } from 'vue'
 import { LewFormItem, LewButton, LewSelect, LewSwitch } from '../components/base'
 
 import { useRoute, useRouter } from 'vue-router'
-import { GithubConfig } from '../model/github_config.model'
+import GithubAPI, { GithubFileData, GithubConfig } from '../api/GithubAPI'
+
 import { SettingConfig } from '../model/setting_config.model'
 import { GithubFile, ImageFile, UploadImageFile, UploadTask, UploadStatus } from '../model/upload_image.model'
 
@@ -43,7 +44,7 @@ watch(
 )
 
 // 获取github配置
-let github_config: GithubConfig = Config.githubConfig()
+let githubConfig: GithubConfig = GithubAPI.getConfig()
 let setting_Config: any = ref(Config.settingConfig() as SettingConfig)
 
 
@@ -210,34 +211,33 @@ const Upload = async  () => {
       // 等待异步操作完成，返回执行结果
       return new Promise((resolve) => {
         setTimeout(() => {
-          axios.put({
-              url: `https://api.github.com/repos/${github_config.owner}/${github_config.repoName}/contents/${uploadImageFile.folder}/${uploadImageFile.name}${uploadImageFile.ext}`,
-              headers:{
-                Authorization: `token ${Config.githubConfig().token}`,
-              },
-              data: {
-                message: `upload a image(${uploadImageFile.folder}/${uploadImageFile.name}${uploadImageFile.ext})`,
-                content: uploadImageFile.getBase64data(),
-              },
-            })
-            .then((res: any) => {
-              uploadTask.status = UploadStatus.success
-              let file = res.data.content as GithubFile
-              uploadImageFile.copyGithubFile(file)
 
-              // 删除不需要的base64数据
-              uploadTask.orginal.base64 = ''
-              uploadTask.compress.base64 = ''
+          const fileData: GithubFileData = {
+            message: `upload a image(${uploadImageFile.folder}/${uploadImageFile.name}${uploadImageFile.ext})`,
+            content: uploadImageFile.getBase64data(),
+            sha: null
+          }
+          const path = `${uploadImageFile.folder}/${uploadImageFile.name}${uploadImageFile.ext}`
+          
+          GithubAPI.createFile(githubConfig.access_token,githubConfig.owner,githubConfig.repoName,path, fileData)
+          .then((res: any) => {
+            uploadTask.status = UploadStatus.success
+            let file = res.data.content as GithubFile
+            uploadImageFile.copyGithubFile(file)
 
-              // 添加历史记录
-              history_list.value.unshift(uploadTask)
-              uploadTask.upload = uploadImageFile
-              resolve(200)
-            })
-            .catch(() => {
-              uploadTask.status = UploadStatus.fail
-              resolve(400)
-            })
+            // 删除不需要的base64数据
+            uploadTask.orginal.base64 = ''
+            uploadTask.compress.base64 = ''
+
+            // 添加历史记录
+            history_list.value.unshift(uploadTask)
+            uploadTask.upload = uploadImageFile
+            resolve(200)
+          })
+          .catch(() => {
+            uploadTask.status = UploadStatus.fail
+            resolve(400)
+          })
         }, (timer += 1000))
       })
     })

@@ -1,37 +1,9 @@
-import { GithubConfig } from '../model/github_config.model'
 import { SettingConfig } from '../model/setting_config.model'
 import { UploadTask } from '../model/upload_image.model'
 
-const GITHUB_CONFIG = 'github_config'
+
 const SETTING_CONFIG = 'setting_config'
 const HISTORY ='history'
-
-export const saveGithubConfig = (githubConfig: GithubConfig) => {
-  localStorage.setItem(GITHUB_CONFIG, JSON.stringify(githubConfig))
-}
-
-export const githubConfig = (): GithubConfig => {
-  let githubConfig = null
-  try {
-    githubConfig = JSON.parse(localStorage.getItem(GITHUB_CONFIG))
-  } catch (e) {
-  }
-
-  if(!githubConfig){
-    githubConfig = {
-      token: '',
-      owner: '',
-      repoId: '',
-      repoName: '',
-      repoBranch: '',
-      name: '',
-      avatarUrl: '',
-      cdnRule: ''
-    }
-  }
-
-  return githubConfig
-}
 
 export const saveSettingConfig = (settingConfig: SettingConfig) => {
   localStorage.setItem(SETTING_CONFIG, JSON.stringify(settingConfig))
@@ -75,7 +47,6 @@ export const history = (): UploadTask[] => {
 }
 
 export const clear = () => {
-  localStorage.removeItem(GITHUB_CONFIG)
   localStorage.removeItem(SETTING_CONFIG)
   localStorage.removeItem(HISTORY)
 }

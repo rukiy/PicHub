@@ -4,11 +4,12 @@ import * as Config from '../util/config'
 import axios from '../axios/http'
 import { ref } from 'vue'
 import { LewButton, LewInput, LewFormItem } from '../components/base'
+import GithubAPI, { GithubFileData, GithubConfig } from '../api/GithubAPI'
 
-import { GithubConfig } from '../model/github_config.model'
+
 
 // github 本地配置
-let github_config: GithubConfig = Config.githubConfig()
+let githubConfig: GithubConfig = GithubAPI.getConfig()
 
 const props = defineProps({ isOpen: Boolean }) // 是否打开
 const emit = defineEmits([
@@ -20,8 +21,8 @@ let forderName = ref('')
 let loading = ref(false)
 
 // 添加文件夹
-const AddForder = () => {
-  if (!github_config?.repoId) {
+const AddForder = async () => {
+  if (!githubConfig?.repoId) {
     Alert({
       type: 'danger',
       text: '请前往设置，完成配置信息',
@@ -29,30 +30,31 @@ const AddForder = () => {
     return
   }
   loading.value = true
-  axios.put({
-      url: `https://api.github.com/repos/${github_config.owner}/${github_config.repoName}/contents/${forderName.value}/init`,
-      headers:{
-        Authorization: `token ${Config.githubConfig().token}`,
-      },
-      data: {
-        message: 'add a forder',
-        // 此文件用于创建文件夹
-        content: '5q2k5paH5Lu255So5LqO5Yib5bu65paH5Lu25aS5',
-      },
+
+
+  
+  const fileData: GithubFileData = {
+    message: 'add a forder',
+    content: '5q2k5paH5Lu255So5LqO5Yib5bu65paH5Lu25aS5',
+    sha: null
+  }
+  const path = `${forderName.value}/init`
+  
+  GithubAPI.createFile(githubConfig.access_token,githubConfig.owner,githubConfig.repoName,path, fileData)
+  .then((res: any) => {
+    loading.value = false
+    Alert({
+      type: 'success',
+      text: '创建成功！',
     })
-    .then((res: any) => {
-      loading.value = false
-      Alert({
-        type: 'success',
-        text: '创建成功！',
-      })
-      forderName.value = ''
-      emit('close')
-      emit('updateFolderList')
-    })
-    .catch(() => {
-      loading.value = false
-    })
+    forderName.value = ''
+    emit('close')
+    emit('updateFolderList')
+  })
+  .catch(() => {
+    loading.value = false
+  })
+
 }
 </script>
 

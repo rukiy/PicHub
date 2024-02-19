@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Alert } from '../util/alert'
-import * as Config  from '../util/config'
+import * as Config from '../util/config'
 import {
   LewButton,
   LewFormItem,
@@ -8,83 +8,96 @@ import {
   LewInput,
   LewSelect,
 } from '../components/base'
-import { GithubConfig } from '../model/github_config.model'
 import { SettingConfig } from '../model/setting_config.model'
-import { GiteeConfig } from '../api/GiteeAPI'
+import GiteeAPI, { GiteeConfig }  from '../api/GiteeAPI'
+import GithubAPI, { GithubUser, GithubRepo, GithubBranch, GithubConfig } from '../api/GithubAPI'
 
-import axios from '../axios/http'
 import { onMounted, reactive, ref } from 'vue'
 
-const defaultCdnRule = 'https://jsd.cdn.zzko.cn/gh/{owner}/{repo}@{branch}/{path}'
-const repos = ref([] as any)
-const branchs = ref([] as any)
+const defaultCdnRule = 'https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}'
+
+const repos = ref([] as GithubRepo[])
+const branchs = ref([] as GithubBranch[])
+
 let githubConfig: any = ref({} as GithubConfig)
 let giteeConfig: any = ref({} as GiteeConfig)
 let settingConfig: any = ref({} as SettingConfig)
 
+let giteeConfigShow = ref(false)
+
+
 let loading_1 = ref(false)
 let loading_2 = ref(false)
 let loading_3 = ref(false)
-let loading_4 = ref(false)
 
 onMounted(() => {
-  githubConfig.value = Config.githubConfig()
-  if(githubConfig.value.token){
-    GetUser()
-  }
+  githubConfig.value = GithubAPI.getConfig()
+  giteeConfig.value = GiteeAPI.getConfig()
+  loadRepos()
   settingConfig.value = Config.settingConfig()
 })
 
-const GetUser = () => {
-  axios.get({
-      url: `https://api.github.com/user`,
-      headers:{
-        Authorization: `token ${githubConfig.value.token}`,
-      }
-    })
-    .then((res: any) => {
-      githubConfig.value.owner = res.data.login
-      githubConfig.value.name = res.data.name
-      githubConfig.value.avatarUrl = res.data.avatar_url
-      GetRepos()
-      if(githubConfig.value.repoId){
-        GetbBranch(githubConfig.value.repoName,githubConfig.value.repoId)
-      }
-    })
-    .catch(() => {
-      loading_1.value = false
-      loading_4.value = false
-    })
+const loadRepos = async () => {
+  const access_token = githubConfig.value.access_token
+  if (!access_token) {
+    return
+  }
+  loading_1.value = true
+  // 获取用户
+  GithubAPI.getUser(access_token).then((githubUser: GithubUser) => {
+
+    githubConfig.value.owner = githubUser.owner
+    githubConfig.value.name = githubUser.name
+    githubConfig.value.avatarUrl = githubUser.avatarUrl
+
+    // 获取仓库
+    GithubAPI.getRepos(access_token, githubUser.owner)
+      .then((githubRepos) => {
+        repos.value = githubRepos
+        
+        // 选中仓库
+        if(repos.value.length > 0){
+          let currentRepo = githubRepos[0]
+          if(githubConfig.value.repoId){
+            currentRepo = repos.value.find((repo) => githubConfig.value.repoId == repo.id)
+          }
+          githubConfig.value.repoId = currentRepo.id
+          githubConfig.value.repoName = currentRepo.name
+          // 获取分支
+          loadBranchs()
+        }
+      })
+  }).catch(() => {
+    
+  }).finally(() => {
+    loading_1.value = false
+  })
 }
 
-const GetRepos = () => {
-  axios.get({
-      url: `https://api.github.com/users/${githubConfig.value.owner}/repos?type=public&sort=created&per_page=100`,
-      headers:{
-        Authorization: `token ${githubConfig.value.token}`,
-      }
-    })
-    .then((res: any) => {
-      repos.value = res.data
-      loading_1.value = false
-    })
-}
-
-const GetbBranch = (label,value) => {
-  axios.get({
-      url: `https://api.github.com/repos/${githubConfig.value.owner}/${label}/branches`,
-      headers:{
-        Authorization: `token ${githubConfig.value.token}`,
-      }
-    })
-    .then((res: any) => {
-      branchs.value = res.data
+const loadBranchs = async () => {
+  const access_token = githubConfig.value.access_token
+  const owner = githubConfig.value.owner
+  const repoName = githubConfig.value.repoName
+  if(repoName){
+    GithubAPI.getBranchs(access_token, owner, repoName).then((githubBranchs) => {
+      branchs.value = githubBranchs
+      // 选中分支
       if(branchs.value.length > 0){
-        githubConfig.value.repoBranch = branchs.value[0].name
-      }
+          let currentBranch = branchs.value.find((branch) => githubConfig.value.repoBranch == branch.name)
+          if(!currentBranch){
+            currentBranch = githubBranchs[0]
+          }
+          githubConfig.value.repoBranch = currentBranch.name
+        }
     })
+  }
 }
 
+const onRepoChange = async (repoId: number) => {
+  const repo = repos.value.find((repo) => repoId == repo.id)
+  githubConfig.value.repoName = repo.name
+  loadBranchs()
+}
 
 const Save = () => {
   if (!githubConfig.value.repoId) {
@@ -95,13 +108,13 @@ const Save = () => {
     return
   }
   loading_2.value = true
-  githubConfig.value.repoName = repos.value.find((e) => githubConfig.value.repoId == e.id).name
-  if(!githubConfig.value.cdnRule){
+
+  if (!githubConfig.value.cdnRule) {
     githubConfig.value.cdnRule = defaultCdnRule
   }
 
-  Config.saveGithubConfig(githubConfig.value)
-  Config.saveGithubConfig(giteeConfig.value)
+  GithubAPI.saveConfig(githubConfig.value)
+  GiteeAPI.saveConfig(giteeConfig.value)
   Config.saveSettingConfig(settingConfig.value)
 
   setTimeout(() => {
@@ -115,7 +128,10 @@ const Save = () => {
 }
 
 const Exit = () => {
+  
   Config.clear()
+  GithubAPI.clearConfig()
+  GiteeAPI.clearConfig()
 
   loading_3.value = true
   Alert({
@@ -145,82 +161,60 @@ const changeDarkModel = (e) => {
       <div class="name">{{ githubConfig.name }}</div>
     </div>
     <div class="form">
-      <lew-form-item
-        title="Github access token"
-        small_title="如何获取？"
-        small_title_link="https://juejin.cn/post/6989307240633073700"
-        :tips="
-          repos.length == 0
+      <lew-form-item title="Github access token" small_title="如何获取？"
+        small_title_link="https://juejin.cn/post/6989307240633073700" :tips="repos.length == 0
             ? `注意： <br />Pichub不会对你的 access token
           进行储存和转移，它只会储存在你的本机的浏览器内，所以它是相对安全的。如果你试图去浏览器的缓存中清除掉它，你会发现，它需要重新登陆了，但我们不推荐这样操作。
          `
             : ''
-        "
-      >
-        <lew-input
-          :disabled="repos.length > 0"
-          v-model="githubConfig.token"
-          placeholder="请输入"
-        ></lew-input>
+          ">
+        <lew-input :disabled="repos.length > 0" v-model="githubConfig.access_token" placeholder="请输入"></lew-input>
       </lew-form-item>
-      
+
       <lew-form-item v-show="repos.length > 0" title="选择仓库">
-        <lew-select
-          v-model="githubConfig.repoId"
-          :option="repos"
-          label="name"
-          value="id"
-          @on-change="GetbBranch"
-        ></lew-select>
+        <lew-select  v-model="githubConfig.repoId" :option="repos" label="name" value="id" @on-change="onRepoChange(githubConfig.repoId)">
+        </lew-select>
       </lew-form-item>
 
       <lew-form-item v-show="repos.length > 0" title="选择分支">
-        <lew-select
-          v-model="githubConfig.repoBranch"
-          :option="branchs"
-          label="name"
-          value="name"
-        ></lew-select>
+        <lew-select v-model="githubConfig.repoBranch" :option="branchs" label="name" value="name"></lew-select>
       </lew-form-item>
       <lew-form-item v-show="repos.length > 0" title="设置cdn模板">
-        <lew-input v-model="githubConfig.cdnRule" placeholder="https://jsd.cdn.zzko.cn/gh/{owner}/{repo}@{branch}/{path}"></lew-input>
+        <lew-input v-model="githubConfig.cdnRule" :placeholder="defaultCdnRule"></lew-input>
+      </lew-form-item>
+
+      <!-- <lew-form-item direction="row" v-show="repos.length > 0" title="暗黑模式">
+        <lew-switch v-model="settingConfig.isDark" @change="changeDarkModel"></lew-switch>
+      </lew-form-item> -->
+
+      <lew-form-item direction="row" v-show="repos.length > 0" title="配置gitee同步">
+        <lew-switch v-model="giteeConfigShow"></lew-switch>
       </lew-form-item>
       <hr />
-      <lew-form-item title="Gitee access token" >
-        <lew-input
-          v-model="githubConfig.access_token"
-          placeholder="请输入Gitee access_token"
-        ></lew-input>
-      </lew-form-item>
+      <span v-if="repos.length > 0 && giteeConfigShow">
+        <div class="title-2">Gitee配置</div>
+        <lew-form-item title="access token">
+          <lew-input v-model="giteeConfig.access_token" placeholder="请输入"></lew-input>
+        </lew-form-item>
+        <lew-form-item title="用户名">
+          <lew-input v-model="giteeConfig.owner" placeholder="请输入"></lew-input>
+        </lew-form-item>
+        <lew-form-item title="仓库名">
+          <lew-input v-model="giteeConfig.repoName" placeholder="请输入"></lew-input>
+        </lew-form-item>
+        <lew-form-item title="分支">
+          <lew-input v-model="giteeConfig.repoBranch" placeholder="请输入"></lew-input>
+        </lew-form-item>
+      </span>
     </div>
-    
 
-    <lew-form-item direction="row" v-show="repos.length > 0" title="暗黑模式">
-      <lew-switch v-model="settingConfig.isDark" @change="changeDarkModel"></lew-switch>
-    </lew-form-item>
-
-    <lew-button
-      type="primary"
-      v-show="repos.length == 0"
-      @click=";(loading_1 = true), GetUser()"
-      :loading="loading_1"
-    >
+    <lew-button type="primary" v-show="repos.length == 0" @click="loadRepos()" :loading="loading_1">
       确定
     </lew-button>
-    <lew-button
-      type="primary"
-      v-show="repos.length > 0"
-      @click="Save()"
-      :loading="loading_2"
-    >
+    <lew-button type="primary" v-show="repos.length > 0" @click="Save()" :loading="loading_2">
       保存配置
     </lew-button>
-    <lew-button
-      type="danger"
-      v-show="repos.length > 0"
-      @click="Exit()"
-      :loading="loading_3"
-    >
+    <lew-button type="danger" v-show="repos.length > 0" @click="Exit()" :loading="loading_3">
       退出登录
     </lew-button>
   </div>
@@ -232,9 +226,17 @@ const changeDarkModel = (e) => {
   width: 400px;
   margin: 0px auto;
 }
+
 .title-1 {
   margin-top: 120px;
   margin-bottom: 20px;
+  color: var(--text-color-1);
+  font-weight: bold;
+}
+
+.title-1 {
+  margin-top: 20px;
+  margin-bottom: 25px;
   color: var(--text-color-1);
   font-weight: bold;
 }
@@ -246,11 +248,13 @@ const changeDarkModel = (e) => {
   margin-top: 100px;
   margin-bottom: 20px;
   padding: 20px 0px;
+
   .avatar {
     width: 150px;
     border-radius: 50%;
     border: var(--border-width) var(--border-color) solid;
   }
+
   .name {
     margin-top: 5px;
     font-size: 18px;

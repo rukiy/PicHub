@@ -3,27 +3,23 @@ import ImageModal from './ImageModal.vue'
 import FolderModal from './FolderModal.vue'
 import LewButton from './base/LewButton.vue'
 import { Alert } from '../util/alert'
-import * as Config  from '../util/config'
-
-import axios from '../axios/http'
 import { onMounted, ref, watch } from 'vue'
-
 import { useRoute, useRouter } from 'vue-router'
-import { GithubConfig } from '../model/github_config.model'
+import GithubAPI, { GithubFile, GithubConfig } from '../api/GithubAPI'
 const route = useRoute()
 const router = useRouter()
 const emit = defineEmits(['SetImageModal'])
 
-let github_config: GithubConfig = Config.githubConfig()
+let githubConfig: GithubConfig = GithubAPI.getConfig()
 
-let folders = ref([] as any)
+let folders = ref([] as GithubFile[])
 let isOpenImageModal = ref(false)
 let isOpenFolderModal = ref(false)
 let loading = ref(false)
 
 onMounted(() => {
-  if (github_config?.repoId) {
-    GetFolders()
+  if (githubConfig.repoId) {
+    loadFolders()
   }
 })
 
@@ -32,13 +28,13 @@ watch(
   (n: any) => {
     isOpenFolderModal.value = false
     if (
-      !github_config?.owner &&
+      !githubConfig?.owner &&
       route.path != '/setting' &&
       route.path != '/about'
     ) {
       router.push('/setting')
     } else if (route.query.reload) {
-      GetFolders()
+      loadFolders()
     }
   }
 )
@@ -54,28 +50,40 @@ watch(
   }
 )
 
-const GetFolders = () => {
+const loadFolders = async () => {
   loading.value = true
-  axios.get({
-      url: `https://api.github.com/repositories/${github_config.repoId}/contents?t=${new Date().getTime()}`,
-      headers:{
-        Authorization: `token ${Config.githubConfig().token}`,
-      }
-    })
-    .then((res: any) => {
-      loading.value = false
-      folders.value = res.data.filter((e) => e.type == 'dir')
-      if (route.path == '/' && !route.query.folder) {
-        router.push(`/?folder=${folders.value[0].name}`)
-      }
-    })
-    .catch(() => {
-      loading.value = false
-    })
+  await GithubAPI.listFiles(githubConfig.access_token, githubConfig.repoId, '')
+  .then((githubFiles) => {
+    folders.value =  githubFiles.filter((githubFile) => githubFile.type == 'dir')
+    if (route.path == '/' && !route.query.folder) {
+      router.push(`/?folder=${folders.value[0].name}`)
+    }
+  }).catch(() => {
+  }).finally(() => {
+    loading.value = false
+  })
 }
 
+//   axios.get({
+//       url: `https://api.github.com/repositories/${githubConfig.repoId}/contents?t=${new Date().getTime()}`,
+//       headers:{
+//         Authorization: `token ${Config.githubConfig().token}`,
+//       }
+//     })
+//     .then((res: any) => {
+//       loading.value = false
+//       folders.value = res.data.filter((e) => e.type == 'dir')
+//       if (route.path == '/' && !route.query.folder) {
+//         router.push(`/?folder=${folders.value[0].name}`)
+//       }
+//     })
+//     .catch(() => {
+//       loading.value = false
+//     })
+// }
+
 const changeImageModel = () => {
-  if (!github_config?.repoId) {
+  if (!githubConfig?.repoId) {
     Alert({
       type: 'danger',
       text: '请前往设置，完成配置信息',
@@ -113,14 +121,14 @@ defineExpose({
 
         <div v-show="!loading" class="tips">
           <span v-if="folders.length != 0">{{ folders.length }} folders</span>
-          <span v-if="github_config?.owner && folders.length == 0"
+          <span v-if="githubConfig?.owner && folders.length == 0"
             >暂无文件夹
           </span>
-          <span v-if="!github_config?.owner">未授权</span>
+          <span v-if="!githubConfig?.owner">未授权</span>
         </div>
         <lew-button
           v-show="!loading"
-          v-if="github_config?.owner && folders.length == 0"
+          v-if="githubConfig?.owner && folders.length == 0"
           style="margin-top: 10px"
           type="primary"
           @click="isOpenFolderModal = !isOpenFolderModal"
@@ -132,7 +140,7 @@ defineExpose({
       <!-- 操作栏 -->
       <folder-modal
         @close="isOpenFolderModal = false"
-        @updateFolderList="GetFolders()"
+        @updateFolderList="loadFolders()"
         :isOpen="isOpenFolderModal"
       ></folder-modal>
       <div class="handle-box">
@@ -177,7 +185,6 @@ defineExpose({
   border-right: var(--border-width) var(--border-color) solid;
   box-sizing: border-box;
   height: 100vh;
-  overflow-y: scroll;
   z-index: 99;
   background-color: var(--background);
   .header {

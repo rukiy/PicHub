@@ -1,4 +1,6 @@
 import * as utils from '../util/util'
+import { GithubFile } from '../api/GithubAPI'
+
 
 class ImageFile {
   name: string
@@ -69,21 +71,7 @@ class UploadTask {
 }
 
 
-interface GithubFile {
-  download_url: string
-  git_url: string
-  html_url: string
-  name: string
-  path: string
-  sha: string
-  size: number
-  type: string
-  url: string
-}
-
-
 export {
-  GithubFile,
   ImageFile,
   UploadImageFile,
   UploadTask,

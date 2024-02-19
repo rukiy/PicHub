@@ -44,16 +44,7 @@ onMounted(() => {
   <div class="wrapper">
     <div id="alert-box"></div>
     <Sideber @SetImageModal="SetImageModal" ref="sideberRef"></Sideber>
-    <div
-      class="main"
-      :class="{ loading: isLoading }"
-      id="main"
-      :style="
-        isOpenImageModal
-          ? `width:calc(100% - 700px);margin-left:500px`
-          : `width:calc(100% - 200px)`
-      "
-    >
+    <div class="main" :class="{ loading: isLoading }" id="main" :style="isOpenImageModal ? `width:calc(100% - 700px);margin-left:500px`: `width:calc(100% - 200px)`" >
       <router-view v-if="isRouterAlive" @SetLoading="SetLoading" @OpenUploadModel="OpenUploadModel()" />
     </div>
   </div>

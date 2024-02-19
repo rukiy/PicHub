@@ -2,8 +2,8 @@
 import { Alert } from '../util/alert'
 import * as utils  from '../util/util'
 import * as Config  from '../util/config'
-import { GithubConfig } from '../model/github_config.model'
-import { GithubFile, ImageFile, UploadImageFile, UploadTask, UploadStatus } from '../model/upload_image.model'
+import GithubAPI, { GithubFile, GithubFileData, GithubConfig } from '../api/GithubAPI'
+import { ImageFile, UploadImageFile, UploadTask, UploadStatus } from '../model/upload_image.model'
 import LewButton from '../components/base/LewButton.vue'
 import axios from '../axios/http'
 import { onMounted, watch, ref } from 'vue'
@@ -31,44 +31,39 @@ let githubFiles = ref([] as GithubFile[])
 let folder_file = null as GithubFile
 
 onMounted(() => {
-  if (github_config?.owner) {
+  if (githubConfig?.owner) {
     GetImages(route.query.folder)
   } else {
     router.push('/setting')
   }
 })
 
-let github_config: GithubConfig = Config.githubConfig()
+let githubConfig: GithubConfig = GithubAPI.getConfig()
 
 let imageExts = ['.png','.jpg','.jpeg','.bmp','.gif','.webp','.psd','.svg','.tiff']
 
 const GetImages = (folderPath) => {
-  emit('SetLoading', true)
   folder_file = null
-  axios.get({
-      url: `https://api.github.com/repositories/${github_config?.repoId}/contents/${ folderPath || ''}?t=${new Date().getTime()}`,
-      headers:{
-        Authorization: `token ${Config.githubConfig().token}`,
+  emit('SetLoading', true)
+  GithubAPI.listFiles(githubConfig.access_token, githubConfig.repoId, folderPath)
+  .then((_githubFiles) => {
+    githubFiles.value = _githubFiles
+    emit('SetLoading', false)
+    uploadImageFiles.value = []
+    githubFiles.value.forEach((githubFile) => {
+      let ext = utils.GetFileExt(githubFile.name)
+      if(githubFile.name === `${folderPath}.json`){
+        folder_file = githubFile
+      } else if (githubFile.download_url && imageExts.includes(ext)) {
+        let uploadImageFile = new UploadImageFile()
+        uploadImageFile.copyGithubFile(githubFile)
+        uploadImageFiles.value.unshift(uploadImageFile)
       }
     })
-    .then((res: any) => {
-      githubFiles.value = res.data
-      emit('SetLoading', false)
-      uploadImageFiles.value = []
-      githubFiles.value.forEach((githubFile) => {
-        let ext = utils.GetFileExt(githubFile.name)
-        if(githubFile.name === `${folderPath}.json`){
-          folder_file = githubFile
-        } else if (githubFile.download_url && imageExts.includes(ext)) {
-          let uploadImageFile = new UploadImageFile()
-          uploadImageFile.copyGithubFile(githubFile)
-          uploadImageFiles.value.unshift(uploadImageFile)
-        }
-      })
-    })
-    .catch(() => {
-      emit('SetLoading', false)
-    })
+  })
+  .catch(() => {
+    emit('SetLoading', false)
+  })
 }
 
 
@@ -94,24 +89,23 @@ let loading = ref(false)
 const DeleteForder = () => {
   if (githubFiles.value[0]?.name == 'init') {
     loading.value = true
-    axios.delete({
-        url: `https://api.github.com/repos/${github_config.owner}/${github_config.repoName}/contents/${route.query.folder}/init`,
-        headers:{
-          Authorization: `token ${Config.githubConfig().token}`,
-        },
-        data: {
-          message: 'delete init file',
-          sha: githubFiles.value[0]?.sha,
-        },
+
+    const fileData: GithubFileData = {
+      message: 'delete init file',
+      content: null,
+      sha: githubFiles.value[0]?.sha,
+    }
+    const path = `${route.query.folder}/init`
+    
+    GithubAPI.deleteFile(githubConfig.access_token,githubConfig.owner,githubConfig.repoName,path, fileData)
+    .then(() => {
+      Alert({
+        type: 'success',
+        text: '删除成功',
       })
-      .then(() => {
-        Alert({
-          type: 'success',
-          text: '删除成功',
-        })
-        loading.value = false
-        router.push('/?reload=true')
-      })
+      loading.value = false
+      router.push('/?reload=true')
+    })
   } else {
     Alert({
       type: 'success',
@@ -122,26 +116,25 @@ const DeleteForder = () => {
 
 const DeleteImage = (uploadImageFile: UploadImageFile) => {
   emit('SetLoading', true)
-  axios.delete({
-      url: `https://api.github.com/repos/${github_config.owner}/${github_config.repoName}/contents/${route.query.folder}/${uploadImageFile.name}${uploadImageFile.ext}`,
-      headers:{
-        Authorization: `token ${Config.githubConfig().token}`,
-      },
-      data: {
-        message: 'delete a image',
-        sha: uploadImageFile.sha,
-      },
-    }) 
-    .then(() => {
-      Alert({
-        type: 'success',
-        text: '删除成功',
-      })
-      GetImages(route.query.folder)
+
+  const fileData: GithubFileData = {
+    message: 'delete a image',
+    content: null,
+    sha: uploadImageFile.sha,
+  }
+  const path = `${route.query.folder}/${uploadImageFile.name}${uploadImageFile.ext}`
+  
+  GithubAPI.deleteFile(githubConfig.access_token,githubConfig.owner,githubConfig.repoName,path, fileData)
+  .then(() => {
+    Alert({
+      type: 'success',
+      text: '删除成功',
     })
-    .catch(() => {
-      emit('SetLoading', false)
-    })
+    GetImages(route.query.folder)
+  })
+  .catch(() => {
+    emit('SetLoading', false)
+  })
 }
 
 const FormatWImageInfo = (uploadImageFile: UploadImageFile) => {

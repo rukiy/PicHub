@@ -3,7 +3,7 @@ import axios from 'axios'
 import Clipboard from 'clipboard'
 import { Alert } from './alert'
 import * as Config  from './config'
-import { GithubConfig } from '../model/github_config.model'
+import GithubAPI, { GithubConfig } from '../api/GithubAPI'
 
 export function createHash(hashLength: number) {
   // 默认长度 24
@@ -18,7 +18,7 @@ export function createHash(hashLength: number) {
  * @returns 
  */
 export function GetCDNUrl(path: String) {
-  let github_config: GithubConfig = Config.githubConfig()
+  let github_config: GithubConfig = GithubAPI.getConfig()
   return github_config.cdnRule
   .replaceAll('{owner}', github_config.owner)
   .replaceAll('{repo}', github_config.repoName)

@@ -31,7 +31,6 @@ const change = (e) => {
   let label = selectOption[props.label]
   emit('update:modelValue', value)
   emit('on-change', label,value);
-
 }
 </script>
 
